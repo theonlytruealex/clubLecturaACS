@@ -8,6 +8,14 @@ let currentBook = null
 let comments = []
 let reactions = []
 
+// Local Storage for Reactions
+const MY_REACTIONS_KEY = 'bookclub_my_reactions'
+let myReactions = JSON.parse(localStorage.getItem(MY_REACTIONS_KEY) || '{}')
+
+function saveMyReactions() {
+  localStorage.setItem(MY_REACTIONS_KEY, JSON.stringify(myReactions))
+}
+
 // Utilities
 const formatDate = (dateString) => {
   const options = { year: 'numeric', month: 'long', day: 'numeric' }
@@ -190,8 +198,11 @@ function getReactionsHtml(commentId) {
   let reactionsHtml = ''
   Object.keys(reactionCounts).forEach(type => {
     const count = reactionCounts[type]
+    const reactionKey = `${commentId}:${type}`
+    const isActive = !!myReactions[reactionKey]
+    
     reactionsHtml += `
-      <button class="reaction-btn" data-comment-id="${commentId}" data-type="${type}">
+      <button class="reaction-btn ${isActive ? 'active' : ''}" data-comment-id="${commentId}" data-type="${type}">
         ${reactionEmojis[type]} ${count > 0 ? `<span style="margin-left:4px;font-size:0.75rem;">${count}</span>` : ''}
       </button>
     `
@@ -264,22 +275,63 @@ function refreshCommentsUI() {
 
 function attachReactionEvent(btn) {
   btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    
     const commentId = btn.getAttribute('data-comment-id')
     const type = btn.getAttribute('data-type')
-    
-    // Optmistic UI update
-    reactions.push({ comment_id: commentId, type: type })
+    const reactionKey = `${commentId}:${type}`
+    const existingReactionId = myReactions[reactionKey]
     
     const bar = btn.closest('.reactions-bar')
-    if (bar) {
-      bar.innerHTML = getReactionsHtml(commentId)
-      bar.querySelectorAll('.reaction-btn').forEach(attachReactionEvent)
-    }
     
-    // Network call
-    await supabase.from('reactions').insert([
-      { comment_id: commentId, type: type }
-    ])
+    if (existingReactionId) {
+      // Remove reaction
+      reactions = reactions.filter(r => r.id !== existingReactionId)
+      delete myReactions[reactionKey]
+      saveMyReactions()
+      
+      if (bar) {
+        bar.innerHTML = getReactionsHtml(commentId)
+        bar.querySelectorAll('.reaction-btn').forEach(attachReactionEvent)
+      }
+      
+      await supabase.from('reactions').delete().eq('id', existingReactionId)
+    } else {
+      // Add reaction with optimistic UI
+      const tempId = 'temp-' + Date.now()
+      reactions.push({ id: tempId, comment_id: commentId, type: type })
+      myReactions[reactionKey] = tempId
+      saveMyReactions()
+      
+      if (bar) {
+        bar.innerHTML = getReactionsHtml(commentId)
+        bar.querySelectorAll('.reaction-btn').forEach(attachReactionEvent)
+      }
+      
+      const { data, error } = await supabase.from('reactions').insert([
+        { comment_id: commentId, type: type }
+      ]).select()
+      
+      if (!error && data && data.length > 0) {
+        const realId = data[0].id
+        reactions = reactions.map(r => r.id === tempId ? data[0] : r)
+        // If user hasn't un-toggled it while we were waiting
+        if (myReactions[reactionKey] === tempId) {
+          myReactions[reactionKey] = realId
+          saveMyReactions()
+        }
+      } else {
+        // Revert on error
+        reactions = reactions.filter(r => r.id !== tempId)
+        delete myReactions[reactionKey]
+        saveMyReactions()
+        if (bar) {
+          bar.innerHTML = getReactionsHtml(commentId)
+          bar.querySelectorAll('.reaction-btn').forEach(attachReactionEvent)
+        }
+      }
+    }
   })
 }
 
