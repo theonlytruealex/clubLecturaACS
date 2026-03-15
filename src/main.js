@@ -8,12 +8,12 @@ let currentBook = null
 let comments = []
 let reactions = []
 
-// Local Storage for Reactions
+// Local Storage for Reactions (Cleared on refresh per user request)
 const MY_REACTIONS_KEY = 'bookclub_my_reactions'
-let myReactions = JSON.parse(localStorage.getItem(MY_REACTIONS_KEY) || '{}')
+let myReactions = JSON.parse(sessionStorage.getItem(MY_REACTIONS_KEY) || '{}')
 
 function saveMyReactions() {
-  localStorage.setItem(MY_REACTIONS_KEY, JSON.stringify(myReactions))
+  sessionStorage.setItem(MY_REACTIONS_KEY, JSON.stringify(myReactions))
 }
 
 // Utilities
