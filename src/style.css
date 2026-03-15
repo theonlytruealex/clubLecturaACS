@@ -269,11 +269,6 @@ h1, h2, h3, h4, .serif-title {
   background: var(--bg-color);
   border-color: #ccc;
 }
-.reaction-btn.active {
-  background: #e8f0eb;
-  border-color: var(--accent-color);
-  color: var(--accent-color);
-}
 
 .reply-toggle-btn, .reply-btn {
   background: none;
