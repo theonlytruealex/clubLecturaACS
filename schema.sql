@@ -63,4 +63,4 @@ CREATE POLICY "Public select reactions" ON reactions FOR SELECT USING (true);
 
 -- Sample Data Insertion (Optional but helpful for development)
 INSERT INTO books (title, author, cover_url, meeting_date) VALUES 
-('Maestrul și Margareta', 'Mihail Bulgakov', '/covers/maestrul_si_margareta.jpg', '2026-04-04');
+('Maestrul și Margareta', 'Mihail Bulgakov', './covers/maestrul_si_margareta.jpg', '2026-04-04');
